@@ -8,7 +8,7 @@
   "author": "Kotoye Gbemisola <58271499+Barkty@users.noreply.github.com>",
   "scripts": {
     "build": "tsc --build",
-    "start": "node -r dist/src/index.js",
+    "start": "node dist/index.js",
     "dev": "nodemon --exec ts-node ./src/index.ts --mode development",
     "lint": "eslint \"{src,apps,libs}/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
