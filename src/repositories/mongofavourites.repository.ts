@@ -41,7 +41,7 @@ export class MongoFavoritesRepository implements IRepository {
   }
 
   public async remove(pokemonId: string): Promise<void | BadException> {
-    const result = await Favorite.deleteOne({ pokemonId });
+    const result = await Favorite.deleteOne({ name: pokemonId });
     if (result.deletedCount === 0) {
       logger.error(`Pokemon ${pokemonId} not found in favorites`, 'src.repositories.mongofavourites.repository');
       return new BadException('Pokemon not found in favorites');

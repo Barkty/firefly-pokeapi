@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import morgan from 'morgan';
 import paginator from "mongoose-paginate-v2";
 import compression from 'compression';
 import { GlobalErrorCatcherMiddleware } from '../middleware/global-error-catcher.middleware';
@@ -20,6 +21,7 @@ app.use(express.static('public'));
 // Use helmet to secure Express headers
 app.use(helmet());
 app.disable('x-powered-by');
+app.use(morgan("dev"))
 
 app.get('/health', (_, res) => res.json({ message: 'Okay' }));
 

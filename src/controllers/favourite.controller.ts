@@ -24,16 +24,16 @@ class FavoritesController {
   }
 
   public removeFavorite: fnRequest = async(req, res) => {
-    const { id } = req.params;
+    const { favouriteId } = req.params;
 
-    const result = await this.favoritesService.removeFavorite(id);
+    const result = await this.favoritesService.removeFavorite(favouriteId);
     return ApiResponse(res, result, "Pokemon removed from favourites", StatusCodes.NO_CONTENT, result);
   }
 
   public checkFavorite: fnRequest = async(req, res) => {
-    const { id } = req.params;
+    const { favouriteId } = req.params;
 
-    const isFavorite = await this.favoritesService.isFavorite(id);
+    const isFavorite = await this.favoritesService.isFavorite(favouriteId);
 
     return ApiResponse(res, null, "Pokemon is found a favourite", StatusCodes.OK, isFavorite);
   }

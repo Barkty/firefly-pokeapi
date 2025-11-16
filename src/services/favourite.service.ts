@@ -35,6 +35,11 @@ class FavoritesService implements IFavoritesService {
   }
 
   async removeFavorite(pokemonId: string): Promise<void | BadException> {
+    const isFav = await this.isFavorite(pokemonId);
+    if (!isFav) {
+      logger.info(`Pokemon ${pokemonId} not found in favorites`, 'src.services.favourite.service');
+      return new BadException('Pokemon not found in favorites');
+    }
     const resp = await this.repository.remove(pokemonId);
     if (resp instanceof BadException) {
       return resp;
