@@ -2,6 +2,7 @@ import { StatusCodes } from "http-status-codes";
 import pokemonService, { IPokemonService } from "../services/pokemon.service";
 import { fnRequest } from "../types";
 import { ApiResponse } from "../utils/response";
+import * as Dtos from "../dtos/pokemon.dto";
 
 
 class PokemonController {
@@ -10,7 +11,8 @@ class PokemonController {
   public getPokemonList: fnRequest = async(req, res) => {
     const { query } = req;
     console.log('Query params:', query);
-    const pokemonList = await this.pokemonService.getPokemonList();
+    const payload: Dtos.FilterPokemon = { name: query.name as string || '' };
+    const pokemonList = await this.pokemonService.getPokemonList(payload);
     
     return ApiResponse(res, null, "Pokemon fetched successfully", StatusCodes.OK, pokemonList);
   }

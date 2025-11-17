@@ -4,6 +4,10 @@ export interface Pokemon {
   url: string;
 }
 
+export class FilterPokemon {
+  name: string
+}
+
 interface VersionGroupDetail {
   level_learned_at: number;
   move_learn_method: Pokemon;

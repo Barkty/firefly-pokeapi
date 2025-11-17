@@ -6,12 +6,10 @@ import { apiClient } from "../utils/apiClient";
 import NodeCache from "node-cache";
 
 export interface IPokemonService {
-  getPokemonList(): Promise<Dtos.SimplifiedPokemonDTO[]>;
+  getPokemonList(args: Dtos.FilterPokemon): Promise<Dtos.SimplifiedPokemonDTO[]>;
   getPokemonByName(name: string): Promise<any>;
   clearCache(): void;
 }
-
-// const logger = new Logger({ serviceName: 'PokemonService' });
 
 class PokemonService implements IPokemonService {
   constructor() {}
@@ -19,14 +17,15 @@ class PokemonService implements IPokemonService {
   private cache = new NodeCache({ stdTTL: CACHE_TTL });
   private BATCH_SIZE = 20;
 
-  public async getPokemonList(): Promise<Dtos.SimplifiedPokemonDTO[]> {
+  public async getPokemonList(args: Dtos.FilterPokemon): Promise<Dtos.SimplifiedPokemonDTO[]> {
     const cacheKey = 'pokemon_list';
     
     // Check cache first
     const cached = this.cache.get(cacheKey);
     if (cached) {
       logger.info('Returning cached Pokemon list');
-      return cached as Dtos.SimplifiedPokemonDTO[];
+      const cachedPokemons = cached as Dtos.SimplifiedPokemonDTO[];
+      return args.name ? cachedPokemons.filter(p => p.name.toLowerCase().includes(args.name.toLowerCase())) : cachedPokemons;
     }
 
     logger.info(`Fetching ${POKEMON_LIMIT} Pokemon from PokéAPI`);
@@ -50,7 +49,8 @@ class PokemonService implements IPokemonService {
           types: details.types.map(t => t.type.name),
           abilities: details.abilities.map(a => a.ability.name),
           height: details.height,
-          weight: details.weight
+          weight: details.weight,
+          weaknesses: [] // Placeholder for weaknesses
         };
       });
       const batchResults = await Promise.all(batchPromises);
@@ -62,7 +62,7 @@ class PokemonService implements IPokemonService {
     this.cache.set(cacheKey, enrichedPokemon);
     logger.info(`Successfully fetched and cached ${enrichedPokemon.length} Pokemon`, 'src.services.pokemon.service');
     
-    return enrichedPokemon;
+    return args.name ? enrichedPokemon.filter(p => p.name.toLowerCase().includes(args.name.toLowerCase())) : enrichedPokemon;
   }
 
   public async getPokemonByName(name: string) {

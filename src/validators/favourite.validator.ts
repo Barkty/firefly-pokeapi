@@ -2,7 +2,8 @@ import Joi from "joi";
 
 export const filterPokemonSchema = Joi.object({
   limit: Joi.number().label('Limit').required(),
-  offset: Joi.number().label('Limit').required()
+  offset: Joi.number().label('Limit').required(),
+  name: Joi.string().label('Name'),
 });
 export const pokemonNameSchema = Joi.object({
   pokemonName: Joi.string().label('Name').required()
