@@ -1,3 +1,4 @@
+import { GlobalErrorCatcherMiddleware } from '../../../src/middleware/global-error-catcher.middleware';
 import sinon from 'sinon';
 import { Request, Response } from 'express';
 

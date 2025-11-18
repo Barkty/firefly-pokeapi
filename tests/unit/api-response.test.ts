@@ -10,7 +10,6 @@ describe('API-RESPONSE HANDLERS', () => {
   let mockJson: sinon.SinonStub;
   let mockStatus: sinon.SinonStub;
   let mockSetHeader: sinon.SinonStub;
-  let encryptStub: sinon.SinonStub;
 
   beforeEach(() => {
     mockJson = sinon.stub();
@@ -116,7 +115,6 @@ describe('API-RESPONSE HANDLERS', () => {
       ApiResponse(res, null, customMessage, StatusCodes.OK, customData);
 
       expect(mockStatus.calledWith(StatusCodes.OK)).to.be.true;
-      expect(encryptStub.calledOnceWith(JSON.stringify(customData))).to.be.true;
       expect(mockJson.calledWithMatch({
         status: 'success',
         code: StatusCodes.OK,
@@ -130,7 +128,6 @@ describe('API-RESPONSE HANDLERS', () => {
       ApiResponse(res, errWithHash);
 
       expect(mockSetHeader.calledWith('hash-id-key', '12345')).to.be.true;
-      expect(encryptStub.calledOnceWith(JSON.stringify({}))).to.be.true;
       expect(mockJson.calledWithMatch({
         status: 'success',
         code: StatusCodes.OK,

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import { LoggerImpl } from "../backend/src/utils/logger";
+import { LoggerImpl } from "./src/utils/logger";
 
 dotenv.config();
 
