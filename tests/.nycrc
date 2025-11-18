@@ -16,7 +16,7 @@
   "statements": 70,
   "exclude": [
     "src/utils/messages.ts",
-    "src/utils/cache-manager/",
+    "src/utils/cache-manager.ts",
     "src/config/logger.ts",
     "src/utils/pagination.ts"
   ]

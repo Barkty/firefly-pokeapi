@@ -3,7 +3,7 @@ import pokemonService, { IPokemonService } from "../services/pokemon.service";
 import { fnRequest } from "../types";
 import { ApiResponse } from "../utils/response";
 import * as Dtos from "../dtos/pokemon.dto";
-import Messages from "src/utils/messages";
+import Messages from "../utils/messages";
 
 
 class PokemonController {
