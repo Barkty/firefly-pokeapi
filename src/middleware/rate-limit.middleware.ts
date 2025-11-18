@@ -105,7 +105,6 @@ export class RateLimiter {
             `Rate limit exceeded for ${identifier} on ${endpoint}. Count: ${data.count}/${maxRequests}`,
             {trace: 'ratelimiter.middleware.ts'}
           );
-          
           return res.status(StatusCodes.TOO_MANY_REQUESTS).json({
             error: 'Too Many Requests',
             message,

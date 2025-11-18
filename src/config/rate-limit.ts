@@ -11,6 +11,7 @@ export const rateLimitConfig = {
   },
   api: {
     windowMs: 60 * 1000,
-    maxRequests: 60
+    maxRequests: 60,
+    message: 'Too many requests to the API'
   }
 };

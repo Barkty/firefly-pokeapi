@@ -13,7 +13,7 @@ export interface IPokemonService {
 class PokemonService implements IPokemonService {
   constructor() {}
   logger = new LoggerImpl(PokemonService.name);
-  private BATCH_SIZE = 20;
+  private BATCH_SIZE = 10;
 
   private pendingRequests = new Map<string, Promise<any>>();
 
@@ -208,7 +208,6 @@ class PokemonService implements IPokemonService {
     
     try {
       const { data } = await apiClient.get(`/type/${args.type}`);
-      console.log({ data })
       const pokemonList = data.results;
       const enrichedPokemon: Dtos.SimplifiedPokemonDTO[] = [];
 
