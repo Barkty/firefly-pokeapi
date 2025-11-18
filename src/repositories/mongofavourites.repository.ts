@@ -8,16 +8,16 @@ export class MongoFavoritesRepository implements IRepository {
   public async exists(name: string): Promise<IFavourite | BadException> {
     const existing = await Favorite.findOne({ name });
     if (!existing) {
-      return new BadException("Favourite does not exist.");
+      return new BadException("Pokemon not found in favorites");
     }
     return existing;
   }
   writeData(data: { favorites: IFavourite[]; }): Promise<void> {
-    logger.warn(`Method with argument (${JSON.stringify(data)}) not implemented.`, 'src.repositories.mongofavourites.repository');
+    logger.warn(`Method with argument (${JSON.stringify(data)}) not implemented.`, {trace: 'src.repositories.mongofavourites.repository'});
     throw new Error("Method not implemented.");
   }
   readData(): Promise<any> {
-    logger.warn(`Method not implemented.`, 'src.repositories.mongofavourites.repository');
+    logger.warn(`Method not implemented.`, {trace: 'src.repositories.mongofavourites.repository'});
     throw new Error("Method not implemented.");
   }
   public async getAll(): Promise<IFavourite[]> {
@@ -36,17 +36,17 @@ export class MongoFavoritesRepository implements IRepository {
       imageUrl: pokemon.imageUrl
     }).save();
     
-    logger.info(`Added Pokemon ${pokemon.name} (ID: ${pokemon.name}) to favorites`, 'src.repositories.mongofavourites.repository');
+    logger.info(`Added Pokemon ${pokemon.name} (ID: ${pokemon.name}) to favorites`, {trace: 'src.repositories.mongofavourites.repository'});
     return favorite;
   }
 
   public async remove(pokemonId: string): Promise<void | BadException> {
     const result = await Favorite.deleteOne({ name: pokemonId });
     if (result.deletedCount === 0) {
-      logger.error(`Pokemon ${pokemonId} not found in favorites`, 'src.repositories.mongofavourites.repository');
+      logger.error(`Pokemon not found in favorites`,);
       return new BadException('Pokemon not found in favorites');
     }
-    logger.info(`Removed Pokemon ${pokemonId} from favorites`, 'src.repositories.mongofavourites.repository');
+    logger.info(`Removed Pokemon ${pokemonId} from favorites`, {trace: 'src.repositories.mongofavourites.repository'});
   }
 }
 

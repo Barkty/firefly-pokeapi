@@ -6,13 +6,31 @@ import { IFavourite } from "../interfaces/favourites";
 const favoriteSchema = new Schema({
   name: {
     type: String,
-    required: true
+    required: true,
+    lowercase: true,
+    trim: true,
+    index: true
   },
   imageUrl: {
     type: String,
+    trim: true,
   }
 }, {
   timestamps: true
+});
+
+
+favoriteSchema.index({ name: 1, createdAt: -1 });
+
+favoriteSchema.index({ name: 'text' });
+
+favoriteSchema.index({ pokemonId: 1 }, { sparse: true });
+
+favoriteSchema.pre('save', function(next) {
+  if (this.name) {
+    this.name = this.name.toLowerCase().trim();
+  }
+  next();
 });
 
 favoriteSchema.plugin(paginator);

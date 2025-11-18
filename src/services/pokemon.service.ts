@@ -1,81 +1,60 @@
-import { CACHE_TTL, POKEMON_LIMIT } from "../config/constants";
-import Logger from "../config/logger";
 import * as Dtos from "../dtos/pokemon.dto";
 import * as speciesDtos from "../dtos/pokemon-species.dto";
 import { apiClient } from "../utils/apiClient";
-import NodeCache from "node-cache";
+import { cacheManager, CACHE_CONFIG, CACHE_KEYS } from '../utils/cache-manager';
+import { LoggerImpl } from "../utils/logger";
 
 export interface IPokemonService {
   getPokemonList(args: Dtos.FilterPokemon): Promise<Dtos.SimplifiedPokemonDTO[]>;
   getPokemonByName(name: string): Promise<any>;
-  clearCache(): void;
+  getPokemonByType(name: string): Promise<any>;
 }
 
 class PokemonService implements IPokemonService {
   constructor() {}
-  logger = new Logger({ serviceName: PokemonService.name });
-  private cache = new NodeCache({ stdTTL: CACHE_TTL });
+  logger = new LoggerImpl(PokemonService.name);
   private BATCH_SIZE = 20;
 
+  private pendingRequests = new Map<string, Promise<any>>();
+
   public async getPokemonList(args: Dtos.FilterPokemon): Promise<Dtos.SimplifiedPokemonDTO[]> {
-    const cacheKey = 'pokemon_list';
-    
+    const cacheKey = `${CACHE_KEYS.POKEMON_LIST}:${args.page}_${args.limit}_${args.name || 'all'}`;
+
     // Check cache first
-    const cached = this.cache.get(cacheKey);
+    const cached = cacheManager.get<Dtos.SimplifiedPokemonDTO[]>(cacheKey);
     if (cached) {
-      logger.info('Returning cached Pokemon list');
-      const cachedPokemons = cached as Dtos.SimplifiedPokemonDTO[];
-      return args.name ? cachedPokemons.filter(p => p.name.toLowerCase().includes(args.name.toLowerCase())) : cachedPokemons;
+      logger.info('Returning cached Pokemon list', {trace: 'getPokemonList'});
+      return this.filterByName(cached, args.name);
     }
 
-    logger.info(`Fetching ${POKEMON_LIMIT} Pokemon from PokéAPI`);
-    
-    // Fetch the list of Pokemon
-    const { data } = await apiClient.get(`/pokemon?limit=${POKEMON_LIMIT}`);
-    const pokemonList = data.results;
-    const enrichedPokemon: Dtos.SimplifiedPokemonDTO[] = [];
-
-    // Fetch details for each Pokemon in batch
-    for (let i = 0; i < pokemonList.length; i += this.BATCH_SIZE) {
-      const batch = pokemonList.slice(i, i + this.BATCH_SIZE);
-      const batchPromises = batch.map(async (pokemon: Dtos.Pokemon, _index: number) => {
-        const detailsResponse = await apiClient.get(`/pokemon/${pokemon.name}`);
-        const details: Dtos.PokemonDTO = detailsResponse.data;
-  
-        return {
-          id: details.id,
-          name: details.name,
-          imageUrl: details.sprites.front_default ?? details?.sprites?.other?.['official-artwork']?.front_default,
-          types: details.types.map(t => t.type.name),
-          abilities: details.abilities.map(a => a.ability.name),
-          height: details.height,
-          weight: details.weight,
-          weaknesses: [] // Placeholder for weaknesses
-        };
-      });
-      const batchResults = await Promise.all(batchPromises);
-      enrichedPokemon.push(...batchResults.filter(Boolean) as Dtos.SimplifiedPokemonDTO[]);
-      await new Promise(resolve => setTimeout(resolve, 100));
+    const pendingRequest = this.pendingRequests.get(cacheKey);
+    if (pendingRequest) {
+      logger.info('Returning pending request for Pokemon list', {trace: 'getPokemonList'});
+      return pendingRequest;
     }
-    
-    // Cache the results
-    this.cache.set(cacheKey, enrichedPokemon);
-    logger.info(`Successfully fetched and cached ${enrichedPokemon.length} Pokemon`, 'src.services.pokemon.service');
-    
-    return args.name ? enrichedPokemon.filter(p => p.name.toLowerCase().includes(args.name.toLowerCase())) : enrichedPokemon;
+
+    const requestPromise = this.fetchPokemonList(args, cacheKey);
+    this.pendingRequests.set(cacheKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
+      return result;
+    } finally {
+      this.pendingRequests.delete(cacheKey);
+    }
   }
 
   public async getPokemonByName(name: string) {
-    const cacheKey = `pokemon_${name.toLowerCase()}`;
+    const cacheKey = `${CACHE_KEYS.POKEMON_DETAIL}:${name.toLowerCase()}`;
     
     // Check cache first
-    const cached = this.cache.get(cacheKey);
+    const cached = cacheManager.get(cacheKey);
     if (cached) {
-      logger.info(`Returning cached Pokemon ${name}`);
+      logger.info(`Returning cached Pokemon ${name}`, {trace: 'src.services.pokemon.getPokemonByName'});
       return cached;
     }
 
-    logger.info(`Fetching Pokemon ${name} from PokéAPI`, 'src.services.pokemon.service');
+    logger.info(`Fetching Pokemon ${name} from PokéAPI`, {trace: 'src.services.pokemon.getPokemonByName'});
     
     const [detailsResponse, speciesResponse] = await Promise.all([
       apiClient.get(`/pokemon/${name}`),
@@ -118,10 +97,238 @@ class PokemonService implements IPokemonService {
     };
 
     // Cache the result
-    this.cache.set(cacheKey, pokemon);
-    logger.info(`Successfully fetched and cached Pokemon ${name}`, 'src.services.pokemon.service');
+    cacheManager.set(cacheKey, pokemon, CACHE_CONFIG.LONG);
+    logger.info(`Successfully fetched and cached Pokemon ${name}`, {trace: 'src.services.pokemon.service'});
     
     return pokemon;
+  }
+
+  public async getPokemonByType(name: string) {
+    const cacheKey = `${CACHE_KEYS.POKEMON_LIST}:${name.toLowerCase()}`;
+    
+    // Check cache first
+    const cached = cacheManager.get(cacheKey);
+    if (cached) {
+      logger.info(`Returning cached Pokemon ${name}`, {trace: 'src.services.pokemon.getPokemonByType'});
+      return cached;
+    }
+
+    const pendingRequest = this.pendingRequests.get(cacheKey);
+    if (pendingRequest) {
+      logger.info('Returning pending request for Pokemon list', {trace: 'getPokemonByType'});
+      return pendingRequest;
+    }
+
+    logger.info(`Fetching Pokemon ${name} from PokéAPI`, {trace: 'src.services.pokemon.getPokemonByType'});
+    
+    const requestPromise = this.fetchPokemonListByType({ type: name }, cacheKey);
+    this.pendingRequests.set(cacheKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
+      return result;
+    } finally {
+      this.pendingRequests.delete(cacheKey);
+    }
+  }
+
+  private async fetchPokemonList(
+    args: Dtos.FilterPokemon, 
+    cacheKey: string
+  ): Promise<Dtos.SimplifiedPokemonDTO[]> {
+    logger.info(`Fetching ${args.limit} Pokemon from PokéAPI`, {trace: 'fetchPokemonList'});
+    
+    try {
+      const { data } = await apiClient.get(`/pokemon?limit=${args.limit}&offset=${args.page}`);
+      const pokemonList = data.results;
+      const enrichedPokemon: Dtos.SimplifiedPokemonDTO[] = [];
+
+      for (let i = 0; i < pokemonList.length; i += this.BATCH_SIZE) {
+        const batch = pokemonList.slice(i, i + this.BATCH_SIZE);
+        
+        const batchPromises = batch.map(async (pokemon: Dtos.Pokemon) => {
+          try {
+            const pokemonCacheKey = `${CACHE_KEYS.POKEMON_DETAIL}:${pokemon.name}`;
+            const cachedDetail = cacheManager.get<Dtos.SimplifiedPokemonDTO>(pokemonCacheKey);
+            
+            if (cachedDetail) {
+              return cachedDetail;
+            }
+
+            const detailsResponse = await apiClient.get(`/pokemon/${pokemon.name}`);
+            const details: Dtos.PokemonDTO = detailsResponse.data;
+      
+            const simplifiedPokemon = {
+              id: details.id,
+              name: details.name,
+              imageUrl: details.sprites.other?.['official-artwork']?.front_default || details.sprites.front_default,
+              types: details.types.map(t => ({
+                name: t.type.name,
+                slot: t.slot
+              })),
+              abilities: details.abilities.map(a => ({
+                name: a.ability.name,
+                isHidden: a.is_hidden
+              })),
+            };
+
+            cacheManager.set(pokemonCacheKey, simplifiedPokemon, CACHE_CONFIG.LONG);
+
+            return simplifiedPokemon;
+          } catch (error) {
+            logger.error(`Failed to fetch Pokemon ${pokemon.name}:`, error);
+            return null;
+          }
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+        enrichedPokemon.push(...batchResults.filter(Boolean) as Dtos.SimplifiedPokemonDTO[]);
+        
+        // Rate limiting between batches
+        if (i + this.BATCH_SIZE < pokemonList.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      
+      // Cache the complete list
+      cacheManager.set(cacheKey, enrichedPokemon, CACHE_CONFIG.SHORT);
+      logger.info(`Successfully fetched and cached ${enrichedPokemon.length} Pokemon`, {trace: 'fetchPokemonList'});
+      
+      return this.filterByName(enrichedPokemon, args.name);
+    } catch (error) {
+      logger.error('Error fetching Pokemon list:', error);
+      throw error;
+    }
+  }
+  private async fetchPokemonListByType(
+    args: Dtos.FetchPokemonByType, 
+    cacheKey: string
+  ): Promise<Dtos.SimplifiedPokemonDTO[]> {
+    logger.info(`Fetching ${args.type} Pokemon from PokéAPI`, {trace: 'fetchPokemonListByType'});
+    
+    try {
+      const { data } = await apiClient.get(`/type/${args.type}`);
+      console.log({ data })
+      const pokemonList = data.results;
+      const enrichedPokemon: Dtos.SimplifiedPokemonDTO[] = [];
+
+      for (let i = 0; i < pokemonList.length; i += this.BATCH_SIZE) {
+        const batch = pokemonList.slice(i, i + this.BATCH_SIZE);
+        
+        const batchPromises = batch.map(async (pokemon: Dtos.Pokemon) => {
+          try {
+            const pokemonCacheKey = `${CACHE_KEYS.POKEMON_DETAIL}:${pokemon.name}`;
+            const cachedDetail = cacheManager.get<Dtos.SimplifiedPokemonDTO>(pokemonCacheKey);
+            
+            if (cachedDetail) {
+              return cachedDetail;
+            }
+
+            const detailsResponse = await apiClient.get(`/pokemon/${pokemon.name}`);
+            const details: Dtos.PokemonDTO = detailsResponse.data;
+      
+            const simplifiedPokemon = {
+              id: details.id,
+              name: details.name,
+              imageUrl: details.sprites.other?.['official-artwork']?.front_default || details.sprites.front_default,
+              types: details.types.map(t => ({
+                name: t.type.name,
+                slot: t.slot
+              })),
+              abilities: details.abilities.map(a => ({
+                name: a.ability.name,
+                isHidden: a.is_hidden
+              })),
+            };
+
+            cacheManager.set(pokemonCacheKey, simplifiedPokemon, CACHE_CONFIG.LONG);
+
+            return simplifiedPokemon;
+          } catch (error) {
+            logger.error(`Failed to fetch Pokemon ${pokemon.name}:`, error);
+            return null;
+          }
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+        enrichedPokemon.push(...batchResults.filter(Boolean) as Dtos.SimplifiedPokemonDTO[]);
+        
+        // Rate limiting between batches
+        if (i + this.BATCH_SIZE < pokemonList.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      
+      // Cache the complete list
+      cacheManager.set(cacheKey, enrichedPokemon, CACHE_CONFIG.SHORT);
+      logger.info(`Successfully fetched and cached ${enrichedPokemon.length} Pokemon`, {trace: 'fetchPokemonList'});
+      
+      return enrichedPokemon;
+    } catch (error) {
+      logger.error('Error fetching Pokemon list:', error);
+      throw error;
+    }
+  }
+
+  private async fetchPokemonDetails(name: string): Promise<Dtos.SimplifiedPokemonDTO | null> {
+    try {
+      logger.info(`Fetching Pokemon details: ${name}`, {trace: 'fetchPokemonDetails'});
+      
+      const { data } = await apiClient.get(`/pokemon/${name.toLowerCase()}`);
+      
+      const pokemon: Dtos.SimplifiedPokemonDTO = {
+        id: data.id,
+        name: data.name,
+        imageUrl: data.sprites.other?.['official-artwork']?.front_default || data.sprites.front_default,
+        types: data.types.map((t: any) => ({
+          name: t.type.name,
+          slot: t.slot
+        })),
+        abilities: data.abilities.map((a: any) => ({
+          name: a.ability.name,
+          isHidden: a.is_hidden
+        })),
+      };
+
+      // Cache the result
+      const cacheKey = `${CACHE_KEYS.POKEMON_DETAIL}:${name.toLowerCase()}`;
+      cacheManager.set(cacheKey, pokemon, CACHE_CONFIG.LONG);
+
+      return pokemon;
+    } catch (error) {
+      this.logger.error(`Failed to fetch Pokemon ${name}:`, error);
+      return null;
+    }
+  }
+
+  public async searchPokemon(name: string): Promise<Dtos.SimplifiedPokemonDTO | null> {
+    const cacheKey = `${CACHE_KEYS.POKEMON_DETAIL}:${name.toLowerCase()}`;
+
+    // Check cache
+    const cached = cacheManager.get<Dtos.SimplifiedPokemonDTO>(cacheKey);
+    if (cached) {
+      logger.info(`Returning cached Pokemon: ${name}`, {trace: 'searchPokemon'});
+      return cached;
+    }
+
+    // Check pending requests
+    const pendingKey = `search:${name.toLowerCase()}`;
+    const pendingRequest = this.pendingRequests.get(pendingKey);
+    if (pendingRequest) {
+      logger.info(`Returning pending search for: ${name}`, {trace: 'searchPokemon'});
+      return pendingRequest;
+    }
+
+    // Create new request
+    const requestPromise = this.fetchPokemonDetails(name);
+    this.pendingRequests.set(pendingKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
+      return result;
+    } finally {
+      this.pendingRequests.delete(pendingKey);
+    }
   }
 
   parseEvolutionChain(chain: any) {
@@ -147,9 +354,16 @@ class PokemonService implements IPokemonService {
     return parseInt(parts[parts.length - 1]);
   }
 
-  clearCache() {
-    this.cache.flushAll();
-    logger.info('Cache cleared');
+  private filterByName(pokemons: Dtos.SimplifiedPokemonDTO[], name?: string): Dtos.SimplifiedPokemonDTO[] {
+    if (!name) return pokemons;
+    return pokemons.filter(p => p.name.toLowerCase().includes(name.toLowerCase()));
+  }
+
+  /**
+   * Clear all pending requests (useful for testing/cleanup)
+   */
+  public clearPendingRequests(): void {
+    this.pendingRequests.clear();
   }
 }
 

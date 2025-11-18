@@ -10,6 +10,10 @@ pokemonRouter.get('/',
     RequestBodyValidatorMiddleware(pokemonValidator.filterPokemonSchema, 'query'),
     WatchAsyncController(pokemonController.getPokemonList)
 );
+pokemonRouter.get('/type', 
+    RequestBodyValidatorMiddleware(pokemonValidator.filterPokemonTypeOrWeaknessSchema, 'query'),
+    WatchAsyncController(pokemonController.getPokemonByType)
+);
 pokemonRouter.get('/:pokemonName', 
     RequestBodyValidatorMiddleware(pokemonValidator.pokemonNameSchema, 'params'),
     WatchAsyncController(pokemonController.getPokemonByName)

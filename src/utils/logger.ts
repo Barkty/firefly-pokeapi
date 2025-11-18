@@ -1,38 +1,28 @@
 import Logger from "../config/logger";
 
-export interface logWrapper {
-  info: (message: string, ...args: any[]) => void;
-  error: (message: string, ...args: any[]) => void;
-  warn: (message: string, ...args: any[]) => void;
-  debug: (message: string, ...args: any[]) => void;
-}
+export class LoggerImpl {
+  private readonly logger: Logger;
 
-export class LoggerImpl implements logWrapper {
-  private readonly logger = new Logger({ defaultContext: LoggerImpl.name });
-
-  public info(message: string, ...args: any[]) {
-    this.logger.info(`${message} in ${args[0]}`);
+  constructor(context: string) {
+    this.logger = new Logger({ 
+      serviceName: 'FireflyBackend',
+      context: context 
+    });
   }
 
-  public error(message: string, ...args: any[]) {
-    this.logger.error(`Error: ${message} in ${args[0]}`);
+  public info(message: string, meta?: any) {
+    this.logger.info(message, meta);
+  }
+
+  public error(message: string, error?: Error, meta?: any) {
+    this.logger.error(message, error, meta);
   }
   
-  public warn(message: string, ...args: any[]) {
-    this.logger.warn(`Warring: ${message} in ${args[0]}`);
+  public warn(message: string, meta?: any) {
+    this.logger.warn(message, meta);
   }
 
-  public debug(message: string, ...args: any[]) {
-    this.logger.debug(`Debuging: ${message} in ${args[0]}`);
+  public debug(message: string, meta?: any) {
+    this.logger.debug(message, meta);
   }
 }
-
-const logger = new LoggerImpl();
-// Set the global logger
-declare global {
-  // eslint-disable-next-line no-var
-  var logger: LoggerImpl;
-}
-global.logger = logger;
-
-export default logger;

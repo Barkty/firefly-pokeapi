@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import Env from "../utils/envholder";
-import logger from "../utils/logger";
 import { AppEnv } from "../enums";
+import { LoggerImpl } from "../utils/logger";
 
 dotenv.config();
 
@@ -11,6 +11,8 @@ mongoose.set('strictQuery', false);
 const DATABASE_URL = Env.get<string>('DATABASE_URL') 
 const DATABASE_NAME = Env.get<string>('DATABASE_NAME') 
 const NODE_ENV = Env.get<string>('NODE_ENV')
+
+const logger = new LoggerImpl('DatabaseConfig');
 
 declare global {
   // Prevent TS errors with global object
@@ -38,7 +40,7 @@ export const connect = async (uri: string, dbName: string): Promise<any> => {
                 serverSelectionTimeoutMS: 5000,
                 socketTimeoutMS: 45000,
             });
-            logger.info('✅ MongoDB connected via global cache', 'src.config.database');
+            logger.info('✅ MongoDB connected via global cache', {trace: 'src.config.database'});
             return global.mongooseConn;
         } catch (error) {
             logger.error('❌ MongoDB connection failed', error);
@@ -61,6 +63,6 @@ export const disconnectFromDatabase = async () => {
   if (mongoose.connection.readyState !== 0) {
     await mongoose.disconnect();
     global.mongooseConn = null;
-    logger.info('🛑 Disconnected from database', 'src.config.database');
+    logger.info('🛑 Disconnected from database', {trace: 'src.config.database'});
   }
 };

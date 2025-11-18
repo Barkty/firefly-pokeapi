@@ -2,7 +2,7 @@ const FAVORITES_FILE_PATH = 'data/favorites.json';
 
 const POKEMON_LIMIT = 151;
 
-const CACHE_TTL = 60 * 60 * 24;
+const CACHE_TTL = 30 * 60;
 
 const POKEAPI_BASE_URL = 'https://pokeapi.co/api/v2/';
 

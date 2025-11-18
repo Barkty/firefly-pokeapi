@@ -1,6 +1,8 @@
 import express, { Request, Response } from 'express';
 import pokemonRouter from './pokemon.routes';
 import favouriteRouter from './favourite.routes';
+import { limit } from '../../middleware/rate-limit.middleware';
+import cacheRouter from './cache.routes';
 
 const appRouter = express.Router();
 
@@ -11,7 +13,8 @@ appRouter.get('/', (_req: Request, res: Response) => {
   });
 });
 
-appRouter.use('/pokemons', pokemonRouter);
-appRouter.use('/favourites', favouriteRouter);
+appRouter.use('/pokemons', limit('default'), pokemonRouter);
+appRouter.use('/favourites', limit('default'), favouriteRouter);
+appRouter.use('/cache', limit('api'), cacheRouter);
 
 export const v1Router = appRouter;

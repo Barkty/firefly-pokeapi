@@ -3,7 +3,8 @@ import { IRepository } from "../interfaces/repository";
 import * as Dtos from "../dtos/favourite.dto";
 import { BadException } from "../utils/errors";
 import favoritesRepository from "../repositories/mongofavourites.repository";
-import Logger from "../config/logger";
+import cacheManager, { CACHE_CONFIG, CACHE_KEYS } from "../utils/cache-manager";
+import { LoggerImpl } from "../utils/logger";
 
 export interface IFavoritesService {
   getAllFavorites(): Promise<IFavourite[]>;
@@ -14,10 +15,18 @@ export interface IFavoritesService {
 
 class FavoritesService implements IFavoritesService {
   constructor(private readonly repository: IRepository) {}
-  logger = new Logger({ serviceName: FavoritesService.name });
+  logger = new LoggerImpl(FavoritesService.name);
 
   async getAllFavorites(): Promise<IFavourite[]> {
+    const cacheKey = CACHE_KEYS.FAVORITES;
+    // Check cache first
+    const cached = cacheManager.get(cacheKey);
+    if (cached) {
+      logger.info('Returning cached favorites', {trace: 'src.services.favourite.service.getAllFavorites'});
+      return cached as IFavourite[];
+    }
     const favorites = await this.repository.getAll();
+    cacheManager.set(cacheKey, favorites, CACHE_CONFIG.SHORT);
     logger.info(`Retrieved ${favorites.length} favorites`);
     return favorites;
   }
@@ -30,6 +39,7 @@ class FavoritesService implements IFavoritesService {
     }
 
     favorite = await this.repository.add(pokemonData);
+    cacheManager.invalidateFavorites()
     
     return favorite;
   }
@@ -37,10 +47,11 @@ class FavoritesService implements IFavoritesService {
   async removeFavorite(pokemonId: string): Promise<void | BadException> {
     const isFav = await this.isFavorite(pokemonId);
     if (!isFav) {
-      logger.info(`Pokemon ${pokemonId} not found in favorites`, 'src.services.favourite.service');
+      logger.info(`Pokemon ${pokemonId} not found in favorites`, {trace: 'src.services.favourite.service'});
       return new BadException('Pokemon not found in favorites');
     }
     const resp = await this.repository.remove(pokemonId);
+    cacheManager.invalidateFavorites()
     if (resp instanceof BadException) {
       return resp;
     }

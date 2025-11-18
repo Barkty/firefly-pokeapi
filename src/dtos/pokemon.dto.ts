@@ -5,7 +5,9 @@ export interface Pokemon {
 }
 
 export class FilterPokemon {
-  name: string
+  name: string;
+  page: number;
+  limit: number
 }
 
 interface VersionGroupDetail {
@@ -132,4 +134,12 @@ export interface PokemonListResponse {
   next: string | null;
   previous: string | null;
   results: Pokemon[];
+}
+
+export class FetchPokemonByName {
+  name: string;
+}
+
+export class FetchPokemonByType {
+  type: string;
 }

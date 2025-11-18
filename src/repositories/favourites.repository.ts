@@ -85,8 +85,8 @@ class FavoritesRepositoryImpl implements IRepository {
     const data = await this.readData();
     const existing = data.favorites.find(fav => fav.name === pokemonId);
     if (!existing) {
-      logger.info(`Pokemon ${pokemonId} not found in favorites`, 'src.repositories.favourites.repository');
-      return new BadException("Method not implemented.");
+      logger.info(`Pokemon ${pokemonId} not found in favorites`, {trace: 'src.repositories.favourites.repository'});
+      return new BadException("Pokemon not found in favorites");
     }
     return existing;
   }

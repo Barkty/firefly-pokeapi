@@ -6,6 +6,9 @@ import paginator from "mongoose-paginate-v2";
 import compression from 'compression';
 import { GlobalErrorCatcherMiddleware } from '../middleware/global-error-catcher.middleware';
 import { ROUTE_BASE, v1Router } from '../routes';
+import { corsOptions } from './cors';
+
+import '../helper/scheduler';
 
 paginator.paginate.options = { lean: true, leanWithId: false };
 
@@ -14,7 +17,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 
-app.use(cors());
+app.use(cors(corsOptions));
 
 app.use(express.static('public'));
 
